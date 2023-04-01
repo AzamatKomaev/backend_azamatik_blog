@@ -1,0 +1,10 @@
+server:
+  error:
+    include-message: always
+
+spring:
+  liquibase:
+    enabled: true
+  jpa:
+    hibernate:
+      ddl-auto: validate
