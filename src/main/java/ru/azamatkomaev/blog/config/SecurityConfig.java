@@ -9,6 +9,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import ru.azamatkomaev.blog.advice.FilterChainExceptionHandler;
 
 @Configuration
 @EnableWebSecurity
@@ -16,16 +17,19 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
     private final JwtAuthFilter jwtAuthFilter;
     private final AuthenticationProvider authenticationProvider;
+    private final FilterChainExceptionHandler filterChainExceptionHandler;
 
+    /*
+        requestMatchers do not work here. So they are moved to jwtAuthFilter.
+     */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        // requestMatchers do not work here. So they are moved to jwtAuthFilter.
-        // TODO: add exception handler before all filters
         return http
             .csrf().disable()
             .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             .and()
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+            .addFilterBefore(filterChainExceptionHandler, jwtAuthFilter.getClass())
             .authenticationProvider(authenticationProvider)
             .build();
     }
