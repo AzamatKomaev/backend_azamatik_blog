@@ -1,3 +1,5 @@
 databaseChangeLog:
   - include:
       file: db/changelog/01__Create_posts_table.sql
+  - include:
+      file: db/changelog/02__Create_users_table.sql
