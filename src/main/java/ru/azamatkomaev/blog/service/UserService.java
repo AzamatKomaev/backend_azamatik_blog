@@ -2,6 +2,7 @@ package ru.azamatkomaev.blog.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import ru.azamatkomaev.blog.exception.NotFoundException;
 import ru.azamatkomaev.blog.model.User;
 import ru.azamatkomaev.blog.repository.UserRepository;
 
@@ -17,17 +18,15 @@ public class UserService {
     }
 
     public User getUserById(Long id) {
-        // TODO: throw NotFoundException if user not found
         return userRepository
             .findById(id)
-            .orElse(null);
+            .orElseThrow(() -> new NotFoundException("Cannot find any user with id: " + id));
     }
 
     public User getUserByUsername(String username) {
-        // TODO: throw NotFoundException if user not found
         return userRepository
             .findByUsername(username)
-            .orElse(null);
+            .orElseThrow(() -> new NotFoundException("Cannot find any user with username: " + username));
     }
 
     public User saveUser(User user) {

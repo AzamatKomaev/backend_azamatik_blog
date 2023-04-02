@@ -5,6 +5,7 @@ import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
+import ru.azamatkomaev.blog.exception.UnauthorizedException;
 
 import java.security.Key;
 import java.util.Date;
@@ -24,8 +25,7 @@ public class JwtService {
                 .getBody();
         } catch (JwtException e) {
             e.printStackTrace();
-            return null;
-            //todo: throw new UnauthorizedException("Token is not valid");
+            throw new UnauthorizedException("Token is not valid");
         }
     }
 
