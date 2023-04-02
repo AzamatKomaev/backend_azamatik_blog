@@ -36,7 +36,8 @@ public class User implements UserDetails {
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     @CreatedDate
     @Temporal(TemporalType.TIMESTAMP)
-    private Date createdAt;
+    @Builder.Default
+    private Date createdAt = new Date();
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
