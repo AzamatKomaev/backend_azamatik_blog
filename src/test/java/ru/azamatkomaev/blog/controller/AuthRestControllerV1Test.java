@@ -13,7 +13,9 @@ import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.RequestBuilder;
+import ru.azamatkomaev.blog.exception.NotFoundException;
 import ru.azamatkomaev.blog.model.User;
+import ru.azamatkomaev.blog.request.LoginRequest;
 import ru.azamatkomaev.blog.request.RegisterRequest;
 import ru.azamatkomaev.blog.service.UserService;
 
@@ -56,6 +58,12 @@ public class AuthRestControllerV1Test {
     private static Stream<Arguments> provideValidUserData() {
         return Stream.of(
             Arguments.of("Azamat", "azamat12345")
+        );
+    }
+
+    private static Stream<Arguments> provideNonExistingUsernameUserData() {
+        return Stream.of(
+            Arguments.of("UnknownUsername", "azamat12345")
         );
     }
 
@@ -136,5 +144,28 @@ public class AuthRestControllerV1Test {
             .andExpect(jsonPath("$.body", is("Required request body is missing")));
 
         verify(userService, never()).getUserByUsername(anyString());
+    }
+
+    @ParameterizedTest
+    @MethodSource("provideNonExistingUsernameUserData")
+    public void testLoginWithNonExistingUsername(String username, String password) throws Exception {
+        final String exceptionMessage = "Cannot find any user with username: " + username;
+
+        when(userService.getUserByUsername(username)).thenThrow(new NotFoundException(exceptionMessage));
+
+        LoginRequest request = LoginRequest.builder()
+            .username(username)
+            .password(password)
+            .build();
+
+        RequestBuilder requestBuilder = post(LOGIN_ENDPOINT)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(mapper.writeValueAsString(request));
+        mockMvc.perform(requestBuilder)
+            .andExpect(status().is(404))
+            .andExpect(jsonPath("$.[*]", hasSize(1)))
+            .andExpect(jsonPath("$.message", is(exceptionMessage)));
+
+        verify(userService, times(1)).getUserByUsername(username);
     }
 }
