@@ -122,4 +122,19 @@ public class AuthRestControllerV1Test {
 
         verify(userService, times(1)).saveUser(username, password);
     }
+
+    @Test
+    public void testLoginWithEmptyBody() throws Exception {
+        when(userService.getUserByUsername(anyString())).thenReturn(null);
+
+        RequestBuilder requestBuilder = post(LOGIN_ENDPOINT)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("");
+        mockMvc.perform(requestBuilder)
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.[*]", hasSize(1)))
+            .andExpect(jsonPath("$.body", is("Required request body is missing")));
+
+        verify(userService, never()).getUserByUsername(anyString());
+    }
 }
