@@ -11,17 +11,11 @@ import ru.azamatkomaev.blog.model.User;
 @RequiredArgsConstructor
 public class AuthService {
     private final UserService userService;
-    private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
 
     public User registerUser(String username, String password) {
-        User user = User.builder()
-            .username(username)
-            .password(passwordEncoder.encode(password))
-            .build();
-
-        return userService.saveUser(user);
+        return userService.saveUser(username, password);
     }
 
     public String loginUser(User user, String password) {

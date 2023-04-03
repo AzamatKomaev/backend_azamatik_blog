@@ -1,6 +1,7 @@
 package ru.azamatkomaev.blog.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import ru.azamatkomaev.blog.exception.NotFoundException;
 import ru.azamatkomaev.blog.model.User;
@@ -12,6 +13,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class UserService {
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
     public List<User> getAllUsers() {
         return userRepository.findAll();
@@ -29,7 +31,12 @@ public class UserService {
             .orElseThrow(() -> new NotFoundException("Cannot find any user with username: " + username));
     }
 
-    public User saveUser(User user) {
+    public User saveUser(String username, String password) {
+        User user = User.builder()
+            .username(username)
+            .password(passwordEncoder.encode(password))
+            .build();
+
         return userRepository.save(user);
     }
 
