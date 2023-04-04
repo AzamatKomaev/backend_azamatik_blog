@@ -13,12 +13,12 @@ import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.RequestBuilder;
-import ru.azamatkomaev.blog.exception.NotFoundException;
 import ru.azamatkomaev.blog.model.User;
+import ru.azamatkomaev.blog.repository.UserRepository;
 import ru.azamatkomaev.blog.request.LoginRequest;
 import ru.azamatkomaev.blog.request.RegisterRequest;
-import ru.azamatkomaev.blog.service.UserService;
 
+import java.util.Optional;
 import java.util.stream.Stream;
 
 import static org.hamcrest.Matchers.hasSize;
@@ -33,7 +33,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 public class AuthRestControllerV1Test {
 
     @MockBean
-    private UserService userService;
+    private UserRepository userRepository;
 
     @Autowired
     private MockMvc mockMvc;
@@ -69,8 +69,6 @@ public class AuthRestControllerV1Test {
 
     @Test
     public void testRegisterWithEmptyBody() throws Exception {
-        when(userService.saveUser(anyString(), anyString())).thenReturn(null);
-
         RequestBuilder requestBuilder = post(REGISTER_ENDPOINT)
             .contentType(MediaType.APPLICATION_JSON)
             .content("");
@@ -78,15 +76,11 @@ public class AuthRestControllerV1Test {
             .andExpect(status().is(400))
             .andExpect(jsonPath("$.[*]", hasSize(1)))
             .andExpect(jsonPath("$.body", is("Required request body is missing")));
-
-        verify(userService, never()).saveUser(anyString(), anyString());
     }
 
     @ParameterizedTest
     @MethodSource("providePasswordSizeLessThanEIGHTUserData")
     public void testRegisterWithPasswordSizeLessThanEIGHT(String username, String password) throws Exception {
-        when(userService.saveUser(anyString(), anyString())).thenReturn(null);
-
         RegisterRequest request = RegisterRequest.builder()
             .username(username)
             .password(password) // length of the string less than 8
@@ -99,20 +93,19 @@ public class AuthRestControllerV1Test {
             .andExpect(status().is(400))
             .andExpect(jsonPath("$.[*]", hasSize(1)))
             .andExpect(jsonPath("$.password", is("password should contain more than 8 symbols")));
-
-        verify(userService, never()).saveUser(anyString(), anyString());
     }
 
     @ParameterizedTest
     @MethodSource("provideValidUserData")
     public void testSuccessfullyRegisterUser(String username, String password) throws Exception {
-        User user = User.builder()
-            .id(1L)
+        User.UserBuilder userBuilder = User.builder()
             .username(username)
-            .password(passwordEncoder.encode(password))
-            .build();
+            .password(passwordEncoder.encode(password));
 
-        when(userService.saveUser(username, password)).thenReturn(user);
+        User when = userBuilder.build();
+        User then = userBuilder.id(1L).build();
+
+        when(userRepository.save(when)).thenReturn(then);
 
         RegisterRequest request = RegisterRequest.builder()
             .username(username)
@@ -128,13 +121,11 @@ public class AuthRestControllerV1Test {
             .andExpect(jsonPath("$.id").isNumber())
             .andExpect(jsonPath("$.username", is(username)));
 
-        verify(userService, times(1)).saveUser(username, password);
+        verify(userRepository, times(1)).save(when);
     }
 
     @Test
     public void testLoginWithEmptyBody() throws Exception {
-        when(userService.getUserByUsername(anyString())).thenReturn(null);
-
         RequestBuilder requestBuilder = post(LOGIN_ENDPOINT)
             .contentType(MediaType.APPLICATION_JSON)
             .content("");
@@ -142,16 +133,12 @@ public class AuthRestControllerV1Test {
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.[*]", hasSize(1)))
             .andExpect(jsonPath("$.body", is("Required request body is missing")));
-
-        verify(userService, never()).getUserByUsername(anyString());
     }
 
     @ParameterizedTest
     @MethodSource("provideNonExistingUsernameUserData")
     public void testLoginWithNonExistingUsername(String username, String password) throws Exception {
-        final String exceptionMessage = "Cannot find any user with username: " + username;
-
-        when(userService.getUserByUsername(username)).thenThrow(new NotFoundException(exceptionMessage));
+        when(userRepository.findByUsername(username)).thenReturn(Optional.empty());
 
         LoginRequest request = LoginRequest.builder()
             .username(username)
@@ -164,8 +151,8 @@ public class AuthRestControllerV1Test {
         mockMvc.perform(requestBuilder)
             .andExpect(status().is(404))
             .andExpect(jsonPath("$.[*]", hasSize(1)))
-            .andExpect(jsonPath("$.message", is(exceptionMessage)));
+            .andExpect(jsonPath("$.message", is("Cannot find any user with username: " + username)));
 
-        verify(userService, times(1)).getUserByUsername(username);
+        verify(userRepository, times(1)).findByUsername(username);
     }
 }

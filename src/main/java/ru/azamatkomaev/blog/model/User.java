@@ -66,7 +66,7 @@ public class User implements UserDetails {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (!(o instanceof User user)) return false;
-        return id.equals(user.id) && username.equals(user.username);
+        return Objects.equals(id, user.id) && Objects.equals(username, user.username);
     }
 
     @Override
