@@ -13,9 +13,10 @@ public class AuthService {
     private final UserService userService;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
+    private final PasswordEncoder passwordEncoder;
 
     public User registerUser(String username, String password) {
-        return userService.saveUser(username, password);
+        return userService.saveUser(username, passwordEncoder.encode(password));
     }
 
     public String loginUser(User user, String password) {

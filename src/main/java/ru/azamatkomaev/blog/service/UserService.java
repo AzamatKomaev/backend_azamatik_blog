@@ -13,7 +13,6 @@ import java.util.List;
 @RequiredArgsConstructor
 public class UserService {
     private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
 
     public List<User> getAllUsers() {
         return userRepository.findAll();
@@ -34,7 +33,7 @@ public class UserService {
     public User saveUser(String username, String password) {
         User user = User.builder()
             .username(username)
-            .password(passwordEncoder.encode(password))
+            .password(password)
             .build();
 
         return userRepository.save(user);

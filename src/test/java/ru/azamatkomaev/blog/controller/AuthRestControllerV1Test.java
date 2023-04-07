@@ -3,7 +3,6 @@ package ru.azamatkomaev.blog.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -13,6 +12,7 @@ import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.RequestBuilder;
+import org.springframework.web.context.WebApplicationContext;
 import ru.azamatkomaev.blog.model.User;
 import ru.azamatkomaev.blog.repository.UserRepository;
 import ru.azamatkomaev.blog.request.LoginRequest;
@@ -25,6 +25,7 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -64,6 +65,12 @@ public class AuthRestControllerV1Test {
     private static Stream<LoginRequest> provideNonExistingUsernameLoginData() {
         return Stream.of(
             LoginRequest.builder().username("UnknownUsername").password("azamat12345").build()
+        );
+    }
+
+    private static Stream<LoginRequest> provideInvalidPasswordLoginData() {
+        return Stream.of(
+            LoginRequest.builder().username("Azamat").password("some_password").build()
         );
     }
 
@@ -139,5 +146,24 @@ public class AuthRestControllerV1Test {
             .andExpect(jsonPath("$.message", is("Cannot find any user with username: " + loginRequest.getUsername())));
 
         verify(userRepository, times(1)).findByUsername(loginRequest.getUsername());
+    }
+
+    @ParameterizedTest
+    @MethodSource("provideInvalidPasswordLoginData")
+    public void testLoginWithInvalidPassword(LoginRequest loginRequest) throws Exception {
+        User userToReturn = User.builder()
+                .id(1L)
+                .username(loginRequest.getUsername())
+                .password(passwordEncoder.encode("not_valid_password"))
+                .build();
+        when(userRepository.findByUsername(loginRequest.getUsername())).thenReturn(Optional.of(userToReturn));
+
+        RequestBuilder requestBuilder = post(LOGIN_ENDPOINT)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(mapper.writeValueAsString(loginRequest));
+        mockMvc.perform(requestBuilder)
+            .andExpect(status().is(400))
+            .andExpect(jsonPath("$.[*]", hasSize(1)))
+            .andExpect(jsonPath("$.message", is("Bad credentials")));
     }
 }

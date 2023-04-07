@@ -1,5 +1,6 @@
 package ru.azamatkomaev.blog.config;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -9,13 +10,17 @@ import org.springframework.security.config.annotation.authentication.configurati
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import ru.azamatkomaev.blog.service.UserService;
 
 @Configuration
+@RequiredArgsConstructor
 public class AppConfig {
+
+    private final UserService userService;
 
     @Bean
     public UserDetailsService userDetailsService() {
-        return (username) -> (null);
+        return userService::getUserByUsername;
     }
 
     @Bean
