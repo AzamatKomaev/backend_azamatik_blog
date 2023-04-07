@@ -1,7 +1,7 @@
 package ru.azamatkomaev.blog.controller;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.juli.logging.Log;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -12,19 +12,21 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.RequestBuilder;
-import org.springframework.web.context.WebApplicationContext;
 import ru.azamatkomaev.blog.model.User;
 import ru.azamatkomaev.blog.repository.UserRepository;
 import ru.azamatkomaev.blog.request.LoginRequest;
 import ru.azamatkomaev.blog.request.RegisterRequest;
 
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
 
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -145,10 +147,10 @@ public class AuthRestControllerV1Test {
     @MethodSource("defaultLoginRequest")
     public void testLoginWithInvalidPassword(LoginRequest loginRequest) throws Exception {
         User userToReturn = User.builder()
-                .id(1L)
-                .username(loginRequest.getUsername())
-                .password(passwordEncoder.encode("not_valid_password"))
-                .build();
+            .id(1L)
+            .username(loginRequest.getUsername())
+            .password(passwordEncoder.encode("not_valid_password"))
+            .build();
         when(userRepository.findByUsername(loginRequest.getUsername())).thenReturn(Optional.of(userToReturn));
 
         RequestBuilder requestBuilder = post(LOGIN_ENDPOINT)
@@ -158,6 +160,9 @@ public class AuthRestControllerV1Test {
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.[*]", hasSize(1)))
             .andExpect(jsonPath("$.message", is("Bad credentials")));
+
+        // times(2) because call it in authenticationProvider and in controller
+        verify(userRepository, times(2)).findByUsername(loginRequest.getUsername());
     }
 
     @ParameterizedTest
@@ -173,11 +178,30 @@ public class AuthRestControllerV1Test {
         RequestBuilder requestBuilder = post(LOGIN_ENDPOINT)
             .contentType(MediaType.APPLICATION_JSON)
             .content(mapper.writeValueAsString(loginRequest));
-        mockMvc.perform(requestBuilder)
-            .andDo(print())
+        MvcResult mvcResult = mockMvc.perform(requestBuilder)
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.[*]", hasSize(1)))
-            .andExpect(jsonPath("$.token").isString());
+            .andExpect(jsonPath("$.token").isString())
+            .andReturn();
 
+        Map<String, String> responseBody = mapper.readValue(
+            mvcResult.getResponse().getContentAsString(),
+            new TypeReference<>() {
+            }
+        );
+        String token = responseBody.get("token");
+
+        requestBuilder = get(GET_ME_ENDPOINT)
+            .header("Authorization", "Bearer " + token);
+        mockMvc.perform(requestBuilder)
+            .andDo(print())
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.[*]", hasSize(3)))
+            .andExpect(jsonPath("$.id").isNumber())
+            .andExpect(jsonPath("$.username", is(loginRequest.getUsername())))
+            .andExpect(jsonPath("$.is_active", is(true)));
+
+        // times(4) because call it in authenticationProvider and in controller twice
+        verify(userRepository, times(4)).findByUsername(loginRequest.getUsername());
     }
 }
