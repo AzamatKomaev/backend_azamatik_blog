@@ -1,6 +1,7 @@
 package ru.azamatkomaev.blog.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.juli.logging.Log;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -48,58 +49,50 @@ public class AuthRestControllerV1Test {
     private final String REGISTER_ENDPOINT = "/api/v1/auth/register";
     private final String LOGIN_ENDPOINT = "/api/v1/auth/login";
 
-    private static Stream<RegisterRequest> providePasswordSizeLessThanEIGHTRegisterData() {
-        return Stream.of(
-            RegisterRequest.builder().username("Azamat1").password("s").build(),
-            RegisterRequest.builder().username("Azamat2").password("small").build(),
-            RegisterRequest.builder().username("Azamat3").password("small_p").build()
-        );
-    }
-
-    private static Stream<RegisterRequest> provideValidRegisterData() {
+    private static Stream<RegisterRequest> defaultRegisterRequest() {
         return Stream.of(
             RegisterRequest.builder().username("Azamat").password("azamat12345").build()
         );
     }
 
-    private static Stream<LoginRequest> provideNonExistingUsernameLoginData() {
+    private static Stream<LoginRequest> defaultLoginRequest() {
         return Stream.of(
-            LoginRequest.builder().username("UnknownUsername").password("azamat12345").build()
+            LoginRequest.builder().username("Azamat").password("azamat12345").build()
         );
     }
 
-    private static Stream<LoginRequest> provideInvalidPasswordLoginData() {
+    private static Stream<RegisterRequest> passwordLessLoginRequest() {
         return Stream.of(
-            LoginRequest.builder().username("Azamat").password("some_password").build()
+            RegisterRequest.builder().username("Azamat").password("less").build()
         );
     }
 
     @Test
-    public void testRegisterWithEmptyBody() throws Exception {
+    public void testRegisterEmptyBody() throws Exception {
         RequestBuilder requestBuilder = post(REGISTER_ENDPOINT)
             .contentType(MediaType.APPLICATION_JSON)
             .content("");
         mockMvc.perform(requestBuilder)
-            .andExpect(status().is(400))
+            .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.[*]", hasSize(1)))
             .andExpect(jsonPath("$.body", is("Required request body is missing")));
     }
 
     @ParameterizedTest
-    @MethodSource("providePasswordSizeLessThanEIGHTRegisterData")
-    public void testRegisterWithPasswordSizeLessThanEIGHT(RegisterRequest registerRequest) throws Exception {
+    @MethodSource("passwordLessLoginRequest")
+    public void testRegisterPasswordLessLength(RegisterRequest registerRequest) throws Exception {
         RequestBuilder requestBuilder = post(REGISTER_ENDPOINT)
             .contentType(MediaType.APPLICATION_JSON)
             .content(mapper.writeValueAsString(registerRequest));
         mockMvc.perform(requestBuilder)
-            .andExpect(status().is(400))
+            .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.[*]", hasSize(1)))
             .andExpect(jsonPath("$.password", is("password should contain more than 8 symbols")));
     }
 
     @ParameterizedTest
-    @MethodSource("provideValidRegisterData")
-    public void testSuccessfullyRegisterUser(RegisterRequest registerRequest) throws Exception {
+    @MethodSource("defaultRegisterRequest")
+    public void testRegister(RegisterRequest registerRequest) throws Exception {
         User.UserBuilder userBuilder = User.builder()
             .username(registerRequest.getUsername())
             .password(passwordEncoder.encode(registerRequest.getPassword()));
@@ -113,7 +106,7 @@ public class AuthRestControllerV1Test {
             .contentType(MediaType.APPLICATION_JSON)
             .content(mapper.writeValueAsString(registerRequest));
         mockMvc.perform(requestBuilder)
-            .andExpect(status().is(201))
+            .andExpect(status().isCreated())
             .andExpect(jsonPath("$.[*]", hasSize(3)))
             .andExpect(jsonPath("$.id").isNumber())
             .andExpect(jsonPath("$.username", is(user.getUsername())));
@@ -122,7 +115,7 @@ public class AuthRestControllerV1Test {
     }
 
     @Test
-    public void testLoginWithEmptyBody() throws Exception {
+    public void testLoginEmptyBody() throws Exception {
         RequestBuilder requestBuilder = post(LOGIN_ENDPOINT)
             .contentType(MediaType.APPLICATION_JSON)
             .content("");
@@ -133,15 +126,15 @@ public class AuthRestControllerV1Test {
     }
 
     @ParameterizedTest
-    @MethodSource("provideNonExistingUsernameLoginData")
-    public void testLoginWithNonExistingUsername(LoginRequest loginRequest) throws Exception {
+    @MethodSource("defaultLoginRequest")
+    public void testLoginNonExistingUsername(LoginRequest loginRequest) throws Exception {
         when(userRepository.findByUsername(loginRequest.getUsername())).thenReturn(Optional.empty());
 
         RequestBuilder requestBuilder = post(LOGIN_ENDPOINT)
             .contentType(MediaType.APPLICATION_JSON)
             .content(mapper.writeValueAsString(loginRequest));
         mockMvc.perform(requestBuilder)
-            .andExpect(status().is(404))
+            .andExpect(status().isNotFound())
             .andExpect(jsonPath("$.[*]", hasSize(1)))
             .andExpect(jsonPath("$.message", is("Cannot find any user with username: " + loginRequest.getUsername())));
 
@@ -149,7 +142,7 @@ public class AuthRestControllerV1Test {
     }
 
     @ParameterizedTest
-    @MethodSource("provideInvalidPasswordLoginData")
+    @MethodSource("defaultLoginRequest")
     public void testLoginWithInvalidPassword(LoginRequest loginRequest) throws Exception {
         User userToReturn = User.builder()
                 .id(1L)
@@ -162,8 +155,29 @@ public class AuthRestControllerV1Test {
             .contentType(MediaType.APPLICATION_JSON)
             .content(mapper.writeValueAsString(loginRequest));
         mockMvc.perform(requestBuilder)
-            .andExpect(status().is(400))
+            .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.[*]", hasSize(1)))
             .andExpect(jsonPath("$.message", is("Bad credentials")));
+    }
+
+    @ParameterizedTest
+    @MethodSource("defaultLoginRequest")
+    public void testLogin(LoginRequest loginRequest) throws Exception {
+        User userToReturn = User.builder()
+            .id(1L)
+            .username(loginRequest.getUsername())
+            .password(passwordEncoder.encode(loginRequest.getPassword()))
+            .build();
+        when(userRepository.findByUsername(loginRequest.getUsername())).thenReturn(Optional.of(userToReturn));
+
+        RequestBuilder requestBuilder = post(LOGIN_ENDPOINT)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(mapper.writeValueAsString(loginRequest));
+        mockMvc.perform(requestBuilder)
+            .andDo(print())
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.[*]", hasSize(1)))
+            .andExpect(jsonPath("$.token").isString());
+
     }
 }
