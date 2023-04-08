@@ -16,6 +16,7 @@ import ru.azamatkomaev.blog.advice.FilterChainExceptionHandler;
 @RequiredArgsConstructor
 public class SecurityConfig {
     private final JwtAuthFilter jwtAuthFilter;
+    private final CorsFilter corsFilter;
     private final AuthenticationProvider authenticationProvider;
     private final FilterChainExceptionHandler filterChainExceptionHandler;
 
@@ -30,6 +31,7 @@ public class SecurityConfig {
             .and()
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(filterChainExceptionHandler, jwtAuthFilter.getClass())
+            .addFilterBefore(corsFilter, filterChainExceptionHandler.getClass())
             .authenticationProvider(authenticationProvider)
             .build();
     }
