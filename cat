@@ -1,0 +1,36 @@
+diff --git a/build.gradle b/build.gradle
+index 5aecc08..5a087e2 100644
+--- a/build.gradle
++++ b/build.gradle
+@@ -2,6 +2,7 @@ plugins {
+ 	id 'java'
+ 	id 'org.springframework.boot' version '3.0.5'
+ 	id 'io.spring.dependency-management' version '1.1.0'
++	id 'jacoco'
+ }
+ 
+ group = 'ru.azamatkomaev'
+@@ -45,4 +46,10 @@ bootRun {
+ 
+ test {
+ 	systemProperty 'spring.profiles.active', 'test'
++	finalizedBy jacocoTestReport
+ }
++
++jacocoTestReport {
++	dependsOn test
++}
++
+diff --git a/src/main/java/ru/azamatkomaev/blog/config/CorsFilter.java b/src/main/java/ru/azamatkomaev/blog/config/CorsFilter.java
+index 2e15678..b77396e 100644
+--- a/src/main/java/ru/azamatkomaev/blog/config/CorsFilter.java
++++ b/src/main/java/ru/azamatkomaev/blog/config/CorsFilter.java
+@@ -15,7 +15,7 @@ public class CorsFilter extends OncePerRequestFilter {
+     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
+         response.addHeader("Access-Control-Allow-Origin", "*");
+         response.addHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, PUT, PATCH, HEAD");
+-        response.addHeader("Access-Control-Allow-Headers", "Origin, Accept, X-Requested-With, Content-Type, Access-Control-Request-Method, Access-Control-Request-Headers");
++        response.addHeader("Access-Control-Allow-Headers", "Origin, Accept, X-Requested-With, Content-Type, Access-Control-Request-Method, Access-Control-Request-Headers, Authorization");
+         response.addHeader("Access-Control-Expose-Headers", "Access-Control-Allow-Origin, Access-Control-Allow-Credentials");
+         response.addHeader("Access-Control-Allow-Credentials", "true");
+         response.addIntHeader("Access-Control-Max-Age", 10);
